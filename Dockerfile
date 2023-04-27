@@ -1,4 +1,4 @@
-FROM maven:3.8.2-jdk-16 AS build
+FROM maven:3.8.3-openjdk-17 AS build
 
 WORKDIR /app
 COPY pom.xml .
