@@ -1,0 +1,14 @@
+build:
+  docker:
+    web: Dockerfile
+
+run:
+  web: java $JAVA_OPTS -jar target/*.jar
+
+release:
+  image: web
+  command:
+    - java
+    - "-Dserver.port=$PORT"
+    - "-jar"
+    - "target/*.jar"
