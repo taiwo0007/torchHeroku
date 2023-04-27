@@ -1,0 +1,75 @@
+steps:
+  # - name: "gcr.io/cloud-builders/docker"
+  #   entrypoint: "bash"
+  #   args:
+  #     - "-c"
+  #     - |
+  #       docker pull gcr.io/cloudsql-docker/cloudsql-proxy:1.24.0
+
+  # - name: "gcr.io/cloud-builders/docker"
+  #   entrypoint: "bash"
+  #   args:
+  #     - "-c"
+  #     - |
+  #       docker run -d -p 127.0.0.1:3306:3306 gcr.io/cloudsql-docker/cloudsql-proxy:1.24.0  \
+  #         --credentials-file /workspace/school-376315-bb5d9cc71a72.json school-376315:europe-west2:torchdb &
+
+  # - name: "gcr.io/cloud-sql-connectors/cloud-sql-proxy"
+  #   args:
+  #     [
+  #       "--credentials-file",
+  #       "school-376315-bb5d9cc71a72.json",
+  #       "--instances=school-376315:europe-west2:torchdb",
+  #       "&",
+  #     ]
+
+  # Replace smtp.google.password with an environmental variable
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        sed -i "s/spring.mail.password=.*/spring.mail.password=$_EMAIL_PASSWORD/" ./BackendAPI/src/main/resources/application.properties
+
+  - name: "gcr.io/cloud-builders/mvn"
+    entrypoint: "mvn"
+    args: ["clean", "install", "-DskipTests"]
+    dir: "./BackendAPI/"
+
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: docker
+    args:
+      [
+        "buildx",
+        "build",
+        "--platform",
+        "linux/amd64",
+        "-t",
+        "gcr.io/$PROJECT_ID/$_SERVICE_NAME:$COMMIT_SHA",
+        "./BackendAPI/",
+      ]
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/$PROJECT_ID/$_SERVICE_NAME:$COMMIT_SHA"]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "deploy",
+        "$_SERVICE_NAME",
+        "--image",
+        "gcr.io/$PROJECT_ID/$_SERVICE_NAME:$COMMIT_SHA",
+        "--region",
+        "$_DEPLOY_REGION",
+        "--port",
+        "8080",
+        "--update-env-vars",
+        "SPRING_PROFILES_ACTIVE=cloud",
+        "--allow-unauthenticated",
+      ]
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images: [gcr.io/$PROJECT_ID/$_SERVICE_NAME:$COMMIT_SHA]
